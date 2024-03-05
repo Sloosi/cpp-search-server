@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 #include <map>
+#include <numeric>
 #include <set>
 #include <string>
 #include <utility>
@@ -117,21 +118,8 @@ public:
 
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query,
-                                        DocumentPredicate document_predicate) const {
-        if (!IsValidWord(raw_query)) {
-            throw invalid_argument("query contains invalid characters"s);
-        }
-
+                                      DocumentPredicate document_predicate) const {
         const Query query = ParseQuery(raw_query);
-
-        for (const auto& word : query.minus_words) {
-            if (word.empty())  {
-                throw invalid_argument("query contains empty minus-words"s);
-            }
-            if (word[0] == '-')  {
-                throw invalid_argument("query contains invalid minus-words"s);
-            }
-        }
 
         vector<Document> result = FindAllDocuments(query, document_predicate);
 
@@ -167,20 +155,7 @@ public:
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-        if (!IsValidWord(raw_query)) {
-            throw invalid_argument("query contains invalid characters"s);
-        }
-
         const Query query = ParseQuery(raw_query);
-
-        for (const auto& word : query.minus_words) {
-            if (word.empty())  {
-                throw invalid_argument("query contains empty minus-words"s);
-            }
-            if (word[0] == '-')  {
-                throw invalid_argument("query contains invalid minus-words"s);
-            }
-        }
 
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
@@ -244,10 +219,9 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
+
+        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
+
         return rating_sum / static_cast<int>(ratings.size());
     }
 
@@ -258,12 +232,24 @@ private:
     };
 
     QueryWord ParseQueryWord(string text) const {
+        if (!IsValidWord(text)) {
+            throw invalid_argument("query contains invalid characters"s);
+        }
+
         bool is_minus = false;
         // Word shouldn't be empty
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
         }
+
+        if (text.empty())  {
+            throw invalid_argument("query contains empty minus-words"s);
+        }
+        if (text[0] == '-')  {
+            throw invalid_argument("query contains invalid minus-words"s);
+        }
+
         return {text, is_minus, IsStopWord(text)};
     }
 
